@@ -1,4 +1,4 @@
-package service;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -9,6 +9,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import models.Task;
 
@@ -22,117 +25,60 @@ public class FileIO {
 
         final String FILENAME = "tasks.txt";
         File file = new File(FILENAME);
-        StringBuilder jsonBuilder = new StringBuilder();
+        JSONObject m=new JSONObject();
     
 
         // Build JSON objects for each task
         for (int i = 0; i < tasks.size(); i++) {
            Task task = tasks.get(i);
-           jsonBuilder.append("{\n");
-          jsonBuilder.append("  \"taskTitle\": \"" + escapeJson(task.getTask_title()) + "\",\n");
-          jsonBuilder.append("  \"taskDescription\": \"" + escapeJson(task.getTask_description()) + "\",\n");
-           jsonBuilder.append("  \"priority\": \"" + task.getPrioirty() + "\",\n");
-           jsonBuilder.append("  \"dueDate\": \"" +task.getDue_date() + "\",\n");
-           jsonBuilder.append("  \"status\": \"" + task.getStaus() + "\"\n");
-           jsonBuilder.append("}");
-
-         if (i < tasks.size() ) {
-               jsonBuilder.append(",");
-           }
-           jsonBuilder.append("\n");
+          m.put("task_priority", task.getPrioirty());
+          m.put("task date", task.getDue_date());
+          m.put("task status", task.getStaus());
+          m.put("task_title",task.getTask_title());
+          m.put("task_description",task.getTask_description());
+         
        }
 
        
 
         try (FileWriter fileWriter = new FileWriter(FILENAME)) {
-           fileWriter.write(jsonBuilder.toString());
+           fileWriter.write(m.toString());
             System.out.println("Tasks saved to file: " + FILENAME);
         } catch (IOException e) {
            System.err.println("Error writing tasks to file: " + e.getMessage());
        }
     }
-   public static List<Task> readTasksFromFile(String filename) {
+   public static void readTasksFromFile(String filename)throws IOException {
        List<Task> tasks = new ArrayList<>();
 
-       try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
-           String line;
-
-           while ((line = br.readLine()) != null) {
-               // Remove leading and trailing whitespace
-               line = line.trim();
-
-               // Skip empty lines
-               if (line.isEmpty()) {
-                   continue;
+           // Parse JSON file
+    	   try (FileReader reader = new FileReader(filename)) {
+               StringBuilder sb = new StringBuilder();
+               int character;
+               while ((character = reader.read()) != -1) {
+                   sb.append((char) character);
                }
-
-               // Parse JSON object from line
-               Task task = parseTaskFromJson(line);
-               if (task != null) {
-                   tasks.add(task);
-               }
+//               System.out.print(sb);
+               JSONArray  JsonArray=  new JSONArray(sb.toString());
+           // Process each JSON object in the array
+           for (int i = 0; i < JsonArray.length(); i++) {
+               JSONObject jsonObject = JsonArray.getJSONObject(i);
+            
+               String title = jsonObject.getString("task_title");
+               String description = jsonObject.getString("task_description");
+               Status status = Status.valueOf(jsonObject.getString("task status"));
+              Priority priority=Priority.valueOf(jsonObject.getString("task_priority"));
+//              tasks.add(new Task(title,description,priority,status));
+              System.out.print(tasks.toString());
            }
 
        } catch (IOException e) {
-           System.err.println("Error reading tasks from file: " + e.getMessage());
+           e.printStackTrace();
        }
 
-       return tasks;
+
+       return ;
    }
 
-   private static Task parseTaskFromJson(String jsonLine) {
-	   Task task = new Task(); // Create a new Task object with default constructor
-	   System.out.println(task.toString());
-       try {
-           // Remove leading and trailing whitespace
-           jsonLine = jsonLine.trim();
-
-           // Remove leading and trailing curly braces if present
-           if (jsonLine.startsWith("{") && jsonLine.endsWith("}")) {
-               jsonLine = jsonLine.substring(1, jsonLine.length() - 1);
-           }
-	  
-           // Split by comma outside quotes
-           String[] keyValuePairs = jsonLine.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
-
-           SimpleDateFormat dateFormat = new SimpleDateFormat("EEE MMM dd HH:mm:ss zzz yyyy");
-
-           for (String pair : keyValuePairs) {
-               // Split by colon
-               String[] keyValue = pair.split(":", 2);
-               if (keyValue.length == 2) {
-                   String key = keyValue[0].trim().replaceAll("\"", "");
-                   String value = keyValue[1].trim().replaceAll("\"", "");
-
-                   switch (key) {
-                       case "taskTitle":
-                           task.setTask_title(value);
-                           break;
-                       case "taskDescription":
-                           task.setTask_description(value);
-                           break;
-                       case "priority":
-                           task.setPrioirty(Priority.valueOf(value));
-                           break;
-                       case "dueDate":
-                           task.setDue_date(dateFormat.parse(value));
-                           break;
-                       case "status":
-                           task.setStaus(Status.valueOf(value));
-                           break;
-                   }
-               }
-           }
-
-       } catch (ParseException e) {
-           System.err.println("Error parsing date: " + e.getMessage());
-       } catch (IllegalArgumentException e) {
-           System.err.println("Error parsing enum value: " + e.getMessage());
-       }
-
-       return task;
-   }
 }
-
-   
 
